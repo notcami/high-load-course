@@ -1,29 +1,14 @@
 package ru.quipy.payments.logic
 
-import org.slf4j.LoggerFactory
-import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
-import ru.quipy.common.utils.NamedThreadFactory
-import ru.quipy.core.EventSourcingService
-import ru.quipy.payments.api.PaymentAggregate
-import java.time.Duration
-import java.util.*
-import java.util.concurrent.Executors
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
-
+import java.util.UUID
 
 @Service
-class PaymentSystemImpl(
-    private val paymentAccounts: List<PaymentExternalSystemAdapter>
-) : PaymentService {
-    companion object {
-        val logger = LoggerFactory.getLogger(PaymentSystemImpl::class.java)
-    }
+class PaymentSystemImpl(paymentAccounts: List<PaymentExternalSystemAdapter>) : PaymentService {
+    private val account = paymentAccounts.filter { it.isEnabled() }.singleOrNull()
+        ?: error("Case 1 requires exactly one enabled payment account (acc-3)")
 
     override fun submitPaymentRequest(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
-        for (account in paymentAccounts) {
-            account.performPaymentAsync(paymentId, amount, paymentStartedAt, deadline)
-        }
+        account.performPaymentAsync(paymentId, amount, paymentStartedAt, deadline)
     }
 }
