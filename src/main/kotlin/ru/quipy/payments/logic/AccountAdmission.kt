@@ -1,19 +1,20 @@
 package ru.quipy.payments.logic
 
 import java.time.Duration
+import java.util.ArrayDeque
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 
-class AccountAdmission(ratePerSecond: Int, parallelRequests: Int) {
+class AccountAdmission(private val ratePerSecond: Int, parallelRequests: Int) {
     init {
         require(ratePerSecond > 0 && parallelRequests > 0)
     }
 
-    private val intervalNanos = (1_050_000_000L + ratePerSecond - 1) / ratePerSecond
+    private val windowNanos = TimeUnit.SECONDS.toNanos(1)
     private val slots = Semaphore(parallelRequests, true)
-    private val pacing = ReentrantLock(true)
-    private var nextStart = System.nanoTime()
+    private val windowLock = ReentrantLock(true)
+    private val starts = ArrayDeque<Long>()
 
     @Throws(InterruptedException::class)
     fun acquire(deadline: Long, responseReserve: Duration): Boolean {
@@ -24,19 +25,25 @@ class AccountAdmission(ratePerSecond: Int, parallelRequests: Int) {
         var admitted = false
         try {
             val lockBudget = end - System.nanoTime()
-            if (lockBudget <= 0 || !pacing.tryLock(lockBudget, TimeUnit.NANOSECONDS)) return false
+            if (lockBudget <= 0 || !windowLock.tryLock(lockBudget, TimeUnit.NANOSECONDS)) return false
             try {
-                val wait = nextStart - System.nanoTime()
-                if (wait > 0) {
-                    if (wait >= end - System.nanoTime()) return false
+                while (true) {
+                    val now = System.nanoTime()
+                    if (now >= end) return false
+                    while (starts.isNotEmpty() && now - starts.peekFirst() >= windowNanos) {
+                        starts.removeFirst()
+                    }
+                    if (starts.size < ratePerSecond) {
+                        starts.addLast(now)
+                        admitted = true
+                        return true
+                    }
+                    val wait = windowNanos - (now - starts.peekFirst())
+                    if (wait >= end - now) return false
                     TimeUnit.NANOSECONDS.sleep(wait)
                 }
-                if (System.nanoTime() >= end) return false
-                nextStart = System.nanoTime() + intervalNanos
-                admitted = true
-                return true
             } finally {
-                pacing.unlock()
+                windowLock.unlock()
             }
         } finally {
             if (!admitted) slots.release()
