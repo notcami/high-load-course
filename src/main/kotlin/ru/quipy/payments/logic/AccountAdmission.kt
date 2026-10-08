@@ -1,20 +1,19 @@
 package ru.quipy.payments.logic
 
 import java.time.Duration
-import java.util.ArrayDeque
+import ru.quipy.common.utils.SlidingWindowRateLimiter
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 
-class AccountAdmission(private val ratePerSecond: Int, parallelRequests: Int) {
+class AccountAdmission(ratePerSecond: Int, parallelRequests: Int) {
     init {
         require(ratePerSecond > 0 && parallelRequests > 0)
     }
 
-    private val windowNanos = TimeUnit.SECONDS.toNanos(1)
+    private val rateLimiter = SlidingWindowRateLimiter(ratePerSecond.toLong(), Duration.ofSeconds(1))
     private val slots = Semaphore(parallelRequests, true)
     private val windowLock = ReentrantLock(true)
-    private val starts = ArrayDeque<Long>()
 
     @Throws(InterruptedException::class)
     fun acquire(deadline: Long, responseReserve: Duration): Boolean {
@@ -30,17 +29,11 @@ class AccountAdmission(private val ratePerSecond: Int, parallelRequests: Int) {
                 while (true) {
                     val now = System.nanoTime()
                     if (now >= end) return false
-                    while (starts.isNotEmpty() && now - starts.peekFirst() >= windowNanos) {
-                        starts.removeFirst()
-                    }
-                    if (starts.size < ratePerSecond) {
-                        starts.addLast(now)
+                    if (rateLimiter.tick()) {
                         admitted = true
                         return true
                     }
-                    val wait = windowNanos - (now - starts.peekFirst())
-                    if (wait >= end - now) return false
-                    TimeUnit.NANOSECONDS.sleep(wait)
+                    TimeUnit.NANOSECONDS.sleep(minOf(TimeUnit.MILLISECONDS.toNanos(10), end - now))
                 }
             } finally {
                 windowLock.unlock()

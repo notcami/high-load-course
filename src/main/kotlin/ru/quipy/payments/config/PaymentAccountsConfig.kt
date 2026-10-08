@@ -32,11 +32,14 @@ class PaymentAccountsConfig {
     @Value("\${payment.token}")
     lateinit var token: String
 
+    @Value("\${payment.provider-call-timeout-millis:60000}")
+    var providerCallTimeoutMillis: Long = 60000
+
     @Value("#{'\${payment.accounts}'.split(',')}")
     lateinit var allowedAccounts: List<String>
 
     @Bean
-    fun accountAdapters(paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>): List<PaymentExternalSystemAdapter> {
+    fun accountAdapters(paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>, metrics: PaymentMetrics): List<PaymentExternalSystemAdapter> {
         val request = HttpRequest.newBuilder()
             .uri(URI("http://${paymentProviderHostPort}/external/accounts?serviceName=$serviceName&token=$token"))
             .GET()
@@ -57,7 +60,9 @@ class PaymentAccountsConfig {
                     it,
                     paymentService,
                     paymentProviderHostPort,
-                    token
+                    token,
+                    metrics,
+                    providerCallTimeoutMillis
                 )
             }
     }
