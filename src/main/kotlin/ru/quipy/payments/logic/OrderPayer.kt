@@ -44,11 +44,16 @@ class OrderPayer {
     @Autowired
     private lateinit var meterRegistry: MeterRegistry
 
+    @Autowired
+    private lateinit var metrics: PaymentMetrics
+
     @PostConstruct
     fun registerMetrics() {
         Gauge.builder("payment.queue.size", paymentExecutor) { it.queue.size.toDouble() }
+            .tag("service", metrics.serviceName)
             .register(meterRegistry)
         Gauge.builder("payment.active.workers", paymentExecutor) { it.activeCount.toDouble() }
+            .tag("service", metrics.serviceName)
             .register(meterRegistry)
     }
 
@@ -59,20 +64,28 @@ class OrderPayer {
 
     fun processPayment(orderId: UUID, amount: Int, paymentId: UUID, deadline: Long): Long {
         val createdAt = System.currentTimeMillis()
+        metrics.received()
         paymentESService.create { it.create(paymentId, orderId, amount) }
+        if (deadline <= now()) {
+            reject(paymentId, createdAt, PaymentMetrics.Outcome.DEADLINE, "Payment deadline expired")
+            return createdAt
+        }
         try {
             paymentExecutor.execute {
                 paymentService.submitPaymentRequest(paymentId, amount, createdAt, deadline)
             }
         } catch (_: RejectedExecutionException) {
-            val transactionId = UUID.randomUUID()
-            paymentESService.update(paymentId) {
-                it.logSubmission(false, transactionId, now(), Duration.ofMillis(now() - createdAt))
-            }
-            paymentESService.update(paymentId) {
-                it.logProcessing(false, now(), transactionId, "Payment queue is full")
-            }
+            reject(paymentId, createdAt, PaymentMetrics.Outcome.QUEUE_FULL, "Payment queue is full")
         }
         return createdAt
+    }
+
+    private fun reject(paymentId: UUID, createdAt: Long, outcome: PaymentMetrics.Outcome, reason: String) {
+        val transactionId = UUID.randomUUID()
+        paymentESService.update(paymentId) {
+            it.logSubmission(false, transactionId, now(), Duration.ofMillis(now() - createdAt))
+        }
+        paymentESService.update(paymentId) { it.logProcessing(false, now(), transactionId, reason) }
+        metrics.completed(outcome)
     }
 }

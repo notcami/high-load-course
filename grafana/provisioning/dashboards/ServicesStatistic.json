@@ -29,12 +29,188 @@
   "liveNow": true,
   "panels": [
     {
+      "id": 101,
+      "type": "row",
+      "title": "Case 3",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 102,
+      "type": "timeseries",
+      "title": "Incoming vs successful completion",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(online_shop_payment_requests_total{service=~\"$service\"}[$__rate_interval]))",
+          "legendFormat": "Incoming payments",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(online_shop_payment_completed_total{service=~\"$service\",outcome=\"SUCCESS\"}[$__rate_interval]))",
+          "legendFormat": "App on-time provider results",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(payment_finished_total{service=~\"$service\",job=\"bombardier-docker-network-job\",outcome=\"SUCCESS\"}[$__rate_interval]))",
+          "legendFormat": "Client successes",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "timeseries",
+      "title": "Application payment outcomes",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(online_shop_payment_completed_total{service=~\"$service\"}[$__rate_interval]) and (online_shop_payment_completed_total{service=~\"$service\"} > 0))",
+          "legendFormat": "{{outcome}}",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "type": "timeseries",
+      "title": "Provider attempt outcomes",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (accountName, outcome) (rate(online_shop_provider_finished_total{service=~\"$service\"}[$__rate_interval]) and (online_shop_provider_finished_total{service=~\"$service\"} > 0))",
+          "legendFormat": "{{accountName}} — {{outcome}}",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
       "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 17
       },
       "id": 27,
       "panels": [
@@ -103,7 +279,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1
+            "y": 18
           },
           "id": 29,
           "options": {
@@ -201,7 +377,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1
+            "y": 18
           },
           "id": 26,
           "options": {
@@ -300,7 +476,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 265
+            "y": 282
           },
           "id": 28,
           "options": {
@@ -379,7 +555,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 265
+            "y": 282
           },
           "id": 36,
           "options": {
@@ -496,7 +672,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 273
+            "y": 290
           },
           "id": 37,
           "options": {
@@ -577,7 +753,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 273
+            "y": 290
           },
           "id": 31,
           "options": {
@@ -639,7 +815,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 18
       },
       "id": 10,
       "panels": [
@@ -701,7 +877,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 2
+            "y": 19
           },
           "id": 2,
           "options": {
@@ -840,7 +1016,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 2
+            "y": 19
           },
           "id": 13,
           "options": {
@@ -941,7 +1117,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 226
+            "y": 243
           },
           "id": 25,
           "options": {
@@ -985,7 +1161,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 2
+        "y": 19
       },
       "id": 12,
       "panels": [
@@ -1087,7 +1263,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 20
           },
           "id": 7,
           "options": {
@@ -1222,7 +1398,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 20
           },
           "id": 8,
           "options": {
@@ -1263,7 +1439,6 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "description": "",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -1320,7 +1495,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 123
+            "y": 140
           },
           "id": 30,
           "options": {
@@ -1378,7 +1553,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 3
+        "y": 20
       },
       "id": 17,
       "panels": [
@@ -1481,7 +1656,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 21
           },
           "id": 3,
           "options": {
@@ -1617,7 +1792,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 21
           },
           "id": 14,
           "options": {
@@ -1755,7 +1930,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 100
+            "y": 117
           },
           "id": 32,
           "options": {
@@ -1893,7 +2068,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 100
+            "y": 117
           },
           "id": 34,
           "options": {
@@ -2055,7 +2230,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 108
+            "y": 125
           },
           "id": 43,
           "options": {
@@ -2103,7 +2278,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 4
+        "y": 21
       },
       "id": 21,
       "panels": [
@@ -2171,7 +2346,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 5
+            "y": 22
           },
           "id": 19,
           "options": {
@@ -2269,7 +2444,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 5
+            "y": 22
           },
           "id": 22,
           "options": {
@@ -2367,7 +2542,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 85
+            "y": 102
           },
           "id": 100,
           "options": {
@@ -2411,7 +2586,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 5
+        "y": 22
       },
       "id": 38,
       "panels": [
@@ -2476,7 +2651,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 6
+            "y": 23
           },
           "id": 40,
           "options": {
@@ -2570,7 +2745,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 6
+            "y": 23
           },
           "id": 39,
           "options": {
@@ -2669,7 +2844,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 38
+            "y": 55
           },
           "id": 95,
           "options": {
@@ -2779,7 +2954,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 38
+            "y": 55
           },
           "id": 42,
           "options": {
@@ -2873,7 +3048,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 63
           },
           "id": 41,
           "options": {
@@ -2916,7 +3091,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 23
       },
       "id": 97,
       "panels": [
@@ -2984,7 +3159,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 24
           },
           "id": 98,
           "maxDataPoints": 100,
@@ -3086,7 +3261,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 24
           },
           "id": 99,
           "maxDataPoints": 100,
@@ -3190,7 +3365,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 15
+            "y": 32
           },
           "id": 24,
           "options": {
@@ -3329,7 +3504,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 40
           },
           "id": 4,
           "options": {
@@ -3429,7 +3604,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 40
           },
           "id": 96,
           "options": {
