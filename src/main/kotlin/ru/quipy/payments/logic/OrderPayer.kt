@@ -3,6 +3,7 @@ package ru.quipy.payments.logic
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Service
 import jakarta.annotation.PostConstruct
 import io.micrometer.core.instrument.MeterRegistry
@@ -19,7 +20,14 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 
 @Service
-class OrderPayer {
+class OrderPayer(
+    @param:Value("\${payment.executor.workers:16}") private val workers: Int,
+    @param:Value("\${payment.executor.queue-capacity:256}") private val queueCapacity: Int,
+) {
+
+    init {
+        require(workers > 0 && queueCapacity > 0)
+    }
 
     companion object {
         val logger: Logger = LoggerFactory.getLogger(OrderPayer::class.java)
@@ -32,11 +40,11 @@ class OrderPayer {
     private lateinit var paymentService: PaymentService
 
     private val paymentExecutor = ThreadPoolExecutor(
-        16,
-        16,
+        workers,
+        workers,
         0L,
         TimeUnit.MILLISECONDS,
-        LinkedBlockingQueue(256),
+        LinkedBlockingQueue(queueCapacity),
         NamedThreadFactory("payment-submission-executor"),
         ThreadPoolExecutor.AbortPolicy()
     )
@@ -53,6 +61,9 @@ class OrderPayer {
             .tag("service", metrics.serviceName)
             .register(meterRegistry)
         Gauge.builder("payment.active.workers", paymentExecutor) { it.activeCount.toDouble() }
+            .tag("service", metrics.serviceName)
+            .register(meterRegistry)
+        Gauge.builder("payment.queue.capacity", paymentExecutor) { queueCapacity.toDouble() }
             .tag("service", metrics.serviceName)
             .register(meterRegistry)
     }
