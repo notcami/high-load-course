@@ -49,7 +49,7 @@ class PaymentExternalSystemAdapterImpl(
         var outcome = PaymentMetrics.Outcome.DEADLINE
         var reason: String? = "Deadline leaves insufficient time for payment"
         try {
-            admitted = admission.acquire(deadline, responseReserve)
+            admitted = admission.acquireSlot(deadline, responseReserve)
             if (admitted && deadline - now() > responseReserve.toMillis()) {
                 val url = "http://$paymentProviderHostPort/external/process".toHttpUrl().newBuilder()
                     .addQueryParameter("serviceName", properties.serviceName)
@@ -63,8 +63,8 @@ class PaymentExternalSystemAdapterImpl(
                     it.logSubmission(true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
                 }
                 submitted = true
-                val remaining = deadline - now()
-                if (remaining > responseReserve.toMillis()) {
+                if (admission.acquireRatePermit(deadline, responseReserve)
+                    && deadline - now() > responseReserve.toMillis()) {
                     call.timeout().timeout(providerCallTimeoutMillis, TimeUnit.MILLISECONDS)
                     metrics.providerStarted(properties.accountName)
                     attempted = true

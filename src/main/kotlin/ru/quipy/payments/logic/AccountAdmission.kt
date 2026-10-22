@@ -16,30 +16,28 @@ class AccountAdmission(ratePerSecond: Int, parallelRequests: Int) {
     private val windowLock = ReentrantLock(true)
 
     @Throws(InterruptedException::class)
-    fun acquire(deadline: Long, responseReserve: Duration): Boolean {
+    fun acquireSlot(deadline: Long, responseReserve: Duration): Boolean {
+        val budgetMillis = deadline - System.currentTimeMillis() - responseReserve.toMillis()
+        if (budgetMillis <= 0) return false
+        return slots.tryAcquire(budgetMillis, TimeUnit.MILLISECONDS)
+    }
+
+    @Throws(InterruptedException::class)
+    fun acquireRatePermit(deadline: Long, responseReserve: Duration): Boolean {
         val budgetMillis = deadline - System.currentTimeMillis() - responseReserve.toMillis()
         if (budgetMillis <= 0) return false
         val end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(budgetMillis)
-        if (!slots.tryAcquire(budgetMillis, TimeUnit.MILLISECONDS)) return false
-        var admitted = false
+        val lockBudget = end - System.nanoTime()
+        if (lockBudget <= 0 || !windowLock.tryLock(lockBudget, TimeUnit.NANOSECONDS)) return false
         try {
-            val lockBudget = end - System.nanoTime()
-            if (lockBudget <= 0 || !windowLock.tryLock(lockBudget, TimeUnit.NANOSECONDS)) return false
-            try {
-                while (true) {
-                    val now = System.nanoTime()
-                    if (now >= end) return false
-                    if (rateLimiter.tick()) {
-                        admitted = true
-                        return true
-                    }
-                    TimeUnit.NANOSECONDS.sleep(minOf(TimeUnit.MILLISECONDS.toNanos(10), end - now))
-                }
-            } finally {
-                windowLock.unlock()
+            while (true) {
+                val now = System.nanoTime()
+                if (now >= end) return false
+                if (rateLimiter.tick()) return true
+                TimeUnit.NANOSECONDS.sleep(minOf(TimeUnit.MILLISECONDS.toNanos(10), end - now))
             }
         } finally {
-            if (!admitted) slots.release()
+            windowLock.unlock()
         }
     }
 
