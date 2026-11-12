@@ -17,6 +17,12 @@ class PaymentMetrics(
     private val incoming = registry.counter("online.shop.payment.requests", "service", serviceName)
 
     fun received() = incoming.increment()
+
+    fun incomingDecision(accepted: Boolean) = registry.counter(
+        "online.shop.payment.ingress", "service", serviceName,
+        "outcome", if (accepted) "ACCEPTED" else "REJECTED"
+    ).increment()
+
     fun completed(outcome: Outcome) = registry.counter(
         "online.shop.payment.completed", "service", serviceName, "outcome", outcome.name
     ).increment()

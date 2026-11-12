@@ -5,7 +5,11 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.MediaType
+import okhttp3.RequestBody
+import okhttp3.Interceptor
+import okhttp3.Response
+import okio.BufferedSink
 import org.slf4j.LoggerFactory
 import ru.quipy.core.EventSourcingService
 import ru.quipy.payments.api.PaymentAggregate
@@ -26,12 +30,12 @@ class PaymentExternalSystemAdapterImpl(
     companion object {
         private val logger = LoggerFactory.getLogger(PaymentExternalSystemAdapterImpl::class.java)
         private val mapper = ObjectMapper().registerKotlinModule()
-        private val emptyBody = ByteArray(0).toRequestBody(null)
     }
 
     private val admission = AccountAdmission(properties.rateLimitPerSec, properties.parallelRequests)
     private val responseReserve = properties.averageProcessingTime.plusMillis(250)
     private val client = OkHttpClient.Builder().retryOnConnectionFailure(false)
+        .addNetworkInterceptor(ProviderRequestInterceptor(admission, responseReserve))
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .followRedirects(false).followSslRedirects(false).build()
 
@@ -58,16 +62,18 @@ class PaymentExternalSystemAdapterImpl(
                     .addQueryParameter("transactionId", transactionId.toString())
                     .addQueryParameter("paymentId", paymentId.toString())
                     .addQueryParameter("amount", amount.toString()).build()
-                val call = client.newCall(Request.Builder().url(url).post(emptyBody).build())
+                val call = client.newCall(Request.Builder().url(url)
+                    .tag(ProviderDeadline::class.java, ProviderDeadline(deadline))
+                    .post(ProviderRequestBody(admission) {
+                        metrics.providerStarted(properties.accountName)
+                        attempted = true
+                    }).build())
                 paymentESService.update(paymentId) {
                     it.logSubmission(true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
                 }
                 submitted = true
-                if (admission.acquireRatePermit(deadline, responseReserve)
-                    && deadline - now() > responseReserve.toMillis()) {
+                if (deadline - now() > responseReserve.toMillis()) {
                     call.timeout().timeout(providerCallTimeoutMillis, TimeUnit.MILLISECONDS)
-                    metrics.providerStarted(properties.accountName)
-                    attempted = true
                     call.execute().use { response ->
                         if (response.isSuccessful) {
                             val body = mapper.readValue(response.body!!.string(), ExternalSysResponse::class.java)
@@ -93,6 +99,7 @@ class PaymentExternalSystemAdapterImpl(
         } catch (e: Exception) {
             reason = "Payment error: ${e.javaClass.simpleName}"
             outcome = when (e) {
+                is ProviderDeadlineExceeded -> PaymentMetrics.Outcome.DEADLINE
                 is InterruptedIOException -> PaymentMetrics.Outcome.TIMEOUT
                 is IOException -> PaymentMetrics.Outcome.IO_ERROR
                 else -> PaymentMetrics.Outcome.INTERNAL_ERROR
@@ -119,6 +126,38 @@ class PaymentExternalSystemAdapterImpl(
     override fun price() = properties.price
     override fun isEnabled() = properties.enabled
     override fun name() = properties.accountName
+}
+
+internal data class ProviderDeadline(val value: Long)
+
+internal class ProviderDeadlineExceeded : IOException("Payment deadline leaves insufficient time for submission")
+
+internal class ProviderRequestInterceptor(
+    private val admission: AccountAdmission,
+    private val responseReserve: Duration,
+) : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val deadline = requireNotNull(chain.request().tag(ProviderDeadline::class.java)).value
+        if (!admission.acquireRatePermit(deadline, responseReserve)) throw ProviderDeadlineExceeded()
+        try {
+            return chain.proceed(chain.request())
+        } finally {
+            admission.releaseRatePermit()
+        }
+    }
+}
+
+internal class ProviderRequestBody(
+    private val admission: AccountAdmission,
+    private val onSend: () -> Unit = {},
+) : RequestBody() {
+    override fun contentType(): MediaType? = null
+    override fun contentLength() = 0L
+    override fun writeTo(sink: BufferedSink) {
+        onSend()
+        sink.flush()
+        admission.releaseRatePermit()
+    }
 }
 
 fun now() = System.currentTimeMillis()
