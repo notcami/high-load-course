@@ -29,13 +29,269 @@
   "liveNow": true,
   "panels": [
     {
+      "id": 116,
+      "type": "row",
+      "title": "Case 6",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 117,
+      "type": "timeseries",
+      "title": "Payment requests and provider attempts: acc-8",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(online_shop_payment_ingress_total{service=~\"$service\",outcome=\"ACCEPTED\"}[20s]))",
+          "legendFormat": "Accepted payments",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(online_shop_provider_started_total{service=~\"$service\",accountName=\"acc-8\"}[20s]))",
+          "legendFormat": "Provider attempts, including retries",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "vector(10)",
+          "legendFormat": "acc-8 limit: 10 rps",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
+      "id": 118,
+      "type": "timeseries",
+      "title": "Retries and temporary provider refusals: acc-8",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(online_shop_payment_retries_total{service=~\"$service\",accountName=\"acc-8\"}[20s]))",
+          "legendFormat": "Retries",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(rate(online_shop_provider_finished_total{service=~\"$service\",accountName=\"acc-8\",outcome=\"TEMPORARY_ERROR\"}[20s]))",
+          "legendFormat": "Temporary refusals",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
+      "id": 119,
+      "type": "timeseries",
+      "title": "Final payment outcomes",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome) (rate(online_shop_payment_completed_total{service=~\"$service\"}[20s])) > 0",
+          "legendFormat": "{{outcome}}",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
+      "id": 120,
+      "type": "timeseries",
+      "title": "Payment queue and active workers",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 9,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(payment_queue_size{service=~\"$service\"})",
+          "legendFormat": "Queued",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(payment_active_workers{service=~\"$service\"})",
+          "legendFormat": "Active workers",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(payment_queue_capacity{service=~\"$service\"})",
+          "legendFormat": "Queue capacity",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
       "id": 111,
       "type": "row",
       "title": "Case 5",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 17,
         "w": 24,
         "h": 1
       },
@@ -51,7 +307,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -120,7 +376,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -167,7 +423,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -236,7 +492,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 9,
+        "y": 26,
         "w": 12,
         "h": 8
       },
@@ -292,7 +548,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 17,
+        "y": 34,
         "w": 24,
         "h": 1
       }
@@ -307,7 +563,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -365,7 +621,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -431,7 +687,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 43,
         "w": 24,
         "h": 1
       },
@@ -447,7 +703,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 44,
         "w": 24,
         "h": 8
       },
@@ -516,7 +772,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -563,7 +819,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 35,
+        "y": 52,
         "w": 12,
         "h": 8
       },
@@ -606,7 +862,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 60
       },
       "id": 27,
       "panels": [
@@ -675,7 +931,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 61
           },
           "id": 29,
           "options": {
@@ -773,7 +1029,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 61
           },
           "id": 26,
           "options": {
@@ -872,7 +1128,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 308
+            "y": 325
           },
           "id": 28,
           "options": {
@@ -951,7 +1207,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 308
+            "y": 325
           },
           "id": 36,
           "options": {
@@ -1068,7 +1324,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 316
+            "y": 333
           },
           "id": 37,
           "options": {
@@ -1149,7 +1405,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 316
+            "y": 333
           },
           "id": 31,
           "options": {
@@ -1211,7 +1467,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 44
+        "y": 61
       },
       "id": 10,
       "panels": [
@@ -1273,7 +1529,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 45
+            "y": 62
           },
           "id": 2,
           "options": {
@@ -1412,7 +1668,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 45
+            "y": 62
           },
           "id": 13,
           "options": {
@@ -1513,7 +1769,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 269
+            "y": 286
           },
           "id": 25,
           "options": {
@@ -1557,7 +1813,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 62
       },
       "id": 12,
       "panels": [
@@ -1659,7 +1915,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 46
+            "y": 63
           },
           "id": 7,
           "options": {
@@ -1794,7 +2050,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 46
+            "y": 63
           },
           "id": 8,
           "options": {
@@ -1891,7 +2147,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 166
+            "y": 183
           },
           "id": 30,
           "options": {
@@ -1949,7 +2205,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 46
+        "y": 63
       },
       "id": 17,
       "panels": [
@@ -2052,7 +2308,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 47
+            "y": 64
           },
           "id": 3,
           "options": {
@@ -2188,7 +2444,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 47
+            "y": 64
           },
           "id": 14,
           "options": {
@@ -2326,7 +2582,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 143
+            "y": 160
           },
           "id": 32,
           "options": {
@@ -2464,7 +2720,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 143
+            "y": 160
           },
           "id": 34,
           "options": {
@@ -2626,7 +2882,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 151
+            "y": 168
           },
           "id": 43,
           "options": {
@@ -2674,7 +2930,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 47
+        "y": 64
       },
       "id": 21,
       "panels": [
@@ -2742,7 +2998,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 65
           },
           "id": 19,
           "options": {
@@ -2840,7 +3096,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 65
           },
           "id": 22,
           "options": {
@@ -2938,7 +3194,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 128
+            "y": 145
           },
           "id": 100,
           "options": {
@@ -2982,7 +3238,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 65
       },
       "id": 38,
       "panels": [
@@ -3047,7 +3303,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 66
           },
           "id": 40,
           "options": {
@@ -3141,7 +3397,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 66
           },
           "id": 39,
           "options": {
@@ -3240,7 +3496,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 81
+            "y": 98
           },
           "id": 95,
           "options": {
@@ -3350,7 +3606,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 81
+            "y": 98
           },
           "id": 42,
           "options": {
@@ -3444,7 +3700,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 89
+            "y": 106
           },
           "id": 41,
           "options": {
@@ -3487,7 +3743,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 66
       },
       "id": 97,
       "panels": [
@@ -3555,7 +3811,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 67
           },
           "id": 98,
           "maxDataPoints": 100,
@@ -3657,7 +3913,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 67
           },
           "id": 99,
           "maxDataPoints": 100,
@@ -3761,7 +4017,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 58
+            "y": 75
           },
           "id": 24,
           "options": {
@@ -3900,7 +4156,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 66
+            "y": 83
           },
           "id": 4,
           "options": {
@@ -4000,7 +4256,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 66
+            "y": 83
           },
           "id": 96,
           "options": {
