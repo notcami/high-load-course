@@ -32,10 +32,13 @@ class PaymentExternalSystemAdapterImpl(
         private val mapper = ObjectMapper().registerKotlinModule()
         private const val MAX_ATTEMPTS = 3
         private const val RETRY_DELAY_MILLIS = 100L
+        private const val CASE_7_TIMEOUT_MILLIS = 2000L
+        private const val RESULT_RESERVE_MILLIS = 250L
     }
 
+    private val retryOnTimeout = properties.accountName == "acc-7"
     private val admission = AccountAdmission(properties.rateLimitPerSec, properties.parallelRequests)
-    private val responseReserve = properties.averageProcessingTime.plusMillis(250)
+    private val responseReserve = properties.averageProcessingTime.plusMillis(RESULT_RESERVE_MILLIS)
     private val client = OkHttpClient.Builder().retryOnConnectionFailure(false)
         .addNetworkInterceptor(ProviderRequestInterceptor(admission, responseReserve))
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -48,8 +51,8 @@ class PaymentExternalSystemAdapterImpl(
 
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
         var attempt = 1
-        var result = performAttempt(paymentId, amount, paymentStartedAt, deadline)
-        while (result.outcome == PaymentMetrics.Outcome.TEMPORARY_ERROR && attempt < MAX_ATTEMPTS &&
+        var result = performAttempt(paymentId, amount, paymentStartedAt, deadline, attempt)
+        while (attempt < MAX_ATTEMPTS && isRetryable(result.outcome) &&
             deadline - now() > responseReserve.toMillis() + RETRY_DELAY_MILLIS) {
             try {
                 Thread.sleep(RETRY_DELAY_MILLIS)
@@ -58,9 +61,8 @@ class PaymentExternalSystemAdapterImpl(
                 result = result.copy(outcome = PaymentMetrics.Outcome.INTERRUPTED, reason = "Payment interrupted")
                 break
             }
-            metrics.retried(properties.accountName)
             attempt++
-            result = performAttempt(paymentId, amount, paymentStartedAt, deadline)
+            result = performAttempt(paymentId, amount, paymentStartedAt, deadline, attempt)
         }
         val outcome = if (result.success && now() >= deadline) PaymentMetrics.Outcome.LATE_SUCCESS else result.outcome
         paymentESService.update(paymentId) {
@@ -70,12 +72,22 @@ class PaymentExternalSystemAdapterImpl(
         logger.info("Payment {} account {} outcome {} attempts {}", paymentId, properties.accountName, outcome, attempt)
     }
 
-    private fun performAttempt(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long): PaymentAttempt {
+    private fun isRetryable(outcome: PaymentMetrics.Outcome) =
+        outcome == PaymentMetrics.Outcome.TEMPORARY_ERROR ||
+            (retryOnTimeout && outcome == PaymentMetrics.Outcome.TIMEOUT)
+
+    private fun performAttempt(
+        paymentId: UUID,
+        amount: Int,
+        paymentStartedAt: Long,
+        deadline: Long,
+        attempt: Int,
+    ): PaymentAttempt {
         val transactionId = UUID.randomUUID()
         var admitted = false
         var submitted = false
         var success = false
-        var attempted = false
+        var sentAtNanos: Long? = null
         var outcome = PaymentMetrics.Outcome.DEADLINE
         var reason: String? = "Deadline leaves insufficient time for payment"
         try {
@@ -91,15 +103,22 @@ class PaymentExternalSystemAdapterImpl(
                 val call = client.newCall(Request.Builder().url(url)
                     .tag(ProviderDeadline::class.java, ProviderDeadline(deadline))
                     .post(ProviderRequestBody(admission) {
+                        sentAtNanos = System.nanoTime()
                         metrics.providerStarted(properties.accountName)
-                        attempted = true
+                        if (attempt > 1) metrics.retried(properties.accountName)
                     }).build())
                 paymentESService.update(paymentId) {
                     it.logSubmission(true, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
                 }
                 submitted = true
-                if (deadline - now() > responseReserve.toMillis()) {
-                    call.timeout().timeout(providerCallTimeoutMillis, TimeUnit.MILLISECONDS)
+                val remainingMillis = deadline - now()
+                if (remainingMillis > responseReserve.toMillis()) {
+                    val timeoutMillis = if (retryOnTimeout) {
+                        minOf(providerCallTimeoutMillis, CASE_7_TIMEOUT_MILLIS, remainingMillis - RESULT_RESERVE_MILLIS)
+                    } else {
+                        providerCallTimeoutMillis
+                    }
+                    call.timeout().timeout(timeoutMillis, TimeUnit.MILLISECONDS)
                     call.execute().use { response ->
                         if (response.isSuccessful) {
                             val body = mapper.readValue(response.body!!.string(), ExternalSysResponse::class.java)
@@ -133,7 +152,7 @@ class PaymentExternalSystemAdapterImpl(
             }
         } finally {
             if (admitted) admission.release()
-            if (attempted) metrics.providerFinished(properties.accountName, outcome)
+            sentAtNanos?.let { metrics.providerFinished(properties.accountName, outcome, System.nanoTime() - it) }
         }
         if (!submitted) {
             paymentESService.update(paymentId) {

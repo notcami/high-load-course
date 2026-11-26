@@ -86,6 +86,42 @@ class PaymentRetryTest {
     }
 
     @Test
+    fun `acc-7 retries a timed out call when there is time left`() {
+        Provider { exchange, attempt ->
+            if (attempt == 1) Thread.sleep(750)
+            respond(exchange, true)
+        }.use { provider ->
+            val payment = Payment(provider, timeoutMillis = 250, account = "acc-7")
+            payment.run()
+
+            assertEquals(2, provider.requests.size)
+            assertEquals(1, provider.requests.map { it["paymentId"] }.distinct().size)
+            assertEquals(1.0, payment.counter("online.shop.payment.retries"))
+            assertEquals(1.0, payment.counter("online.shop.provider.finished", "TIMEOUT"))
+            assertTrue(payment.events.filterIsInstance<PaymentProcessedEvent>().single().success)
+        }
+    }
+
+    @Test
+    fun `acc-7 cuts a slow call short before the client deadline`() {
+        Provider { exchange, _ ->
+            Thread.sleep(2000)
+            respond(exchange, true)
+        }.use { provider ->
+            val payment = Payment(provider, account = "acc-7")
+            val deadline = now() + 1000
+            payment.run(deadline)
+
+            assertEquals(1, provider.requests.size)
+            assertEquals(0.0, payment.counter("online.shop.payment.retries"))
+            assertEquals(1.0, payment.counter("online.shop.payment.completed", "TIMEOUT"))
+            val result = payment.events.filterIsInstance<PaymentProcessedEvent>().single()
+            assertFalse(result.success)
+            assertTrue(result.processedAt < deadline)
+        }
+    }
+
+    @Test
     fun `another attempt is skipped when the deadline has no response budget`() {
         val deadline = AtomicLong()
         Provider { exchange, _ ->
@@ -144,7 +180,12 @@ class PaymentRetryTest {
         }
     }
 
-    private class Payment(provider: Provider, rate: Int = 10, timeoutMillis: Long = 2000) {
+    private class Payment(
+        provider: Provider,
+        rate: Int = 10,
+        timeoutMillis: Long = 2000,
+        account: String = "acc-8",
+    ) {
         private val paymentId = UUID.randomUUID()
         private val state = PaymentAggregateState().apply {
             paymentCreatedApply(create(paymentId, UUID.randomUUID(), 400))
@@ -167,7 +208,7 @@ class PaymentRetryTest {
         }) as EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>
 
         private val adapter = PaymentExternalSystemAdapterImpl(
-            PaymentAccountProperties("test-shop", "acc-8", 1, rate, 30, Duration.ofMillis(10), true),
+            PaymentAccountProperties("test-shop", account, 1, rate, 30, Duration.ofMillis(10), true),
             service, provider.hostPort, "test-token", PaymentMetrics(registry, "test-shop"), timeoutMillis
         )
 
