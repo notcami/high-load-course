@@ -29,13 +29,153 @@
   "liveNow": true,
   "panels": [
     {
+      "id": 126,
+      "type": "row",
+      "title": "Case 7",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 127,
+      "type": "timeseries",
+      "title": "Retries and timed-out attempts per 30 s: acc-7",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(online_shop_payment_retries_total{service=~\"$service\",accountName=\"acc-7\"}[30s]))",
+          "legendFormat": "Retries",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "sum(increase(online_shop_provider_finished_total{service=~\"$service\",accountName=\"acc-7\",outcome=\"TIMEOUT\"}[30s])) or 0 * sum(increase(online_shop_payment_retries_total{service=~\"$service\",accountName=\"acc-7\"}[30s]))",
+          "legendFormat": "Timed-out attempts",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
+      "id": 128,
+      "type": "timeseries",
+      "title": "Provider attempt duration: acc-7",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 8
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(online_shop_provider_attempt_duration_seconds_bucket{service=~\"$service\",accountName=\"acc-7\",outcome=\"SUCCESS\"}[30s])))",
+          "legendFormat": "Successful attempts p50",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "B",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(online_shop_provider_attempt_duration_seconds_bucket{service=~\"$service\",accountName=\"acc-7\",outcome=\"SUCCESS\"}[30s])))",
+          "legendFormat": "Successful attempts p95",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "vector(2)",
+          "legendFormat": "Attempt limit: 2 s",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        }
+      ]
+    },
+    {
       "id": 116,
       "type": "row",
       "title": "Case 6",
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 9,
         "w": 24,
         "h": 1
       },
@@ -51,7 +191,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 10,
         "w": 12,
         "h": 8
       },
@@ -120,7 +260,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 10,
         "w": 12,
         "h": 8
       },
@@ -178,7 +318,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 9,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -225,7 +365,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 9,
+        "y": 18,
         "w": 12,
         "h": 8
       },
@@ -291,7 +431,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 17,
+        "y": 26,
         "w": 24,
         "h": 1
       },
@@ -307,7 +447,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -376,7 +516,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 18,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -423,7 +563,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 26,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -492,7 +632,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 26,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -570,7 +710,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 34,
+        "y": 43,
         "w": 24,
         "h": 1
       }
@@ -585,7 +725,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 35,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -643,7 +783,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 35,
+        "y": 44,
         "w": 12,
         "h": 8
       },
@@ -709,7 +849,7 @@
       "collapsed": false,
       "gridPos": {
         "x": 0,
-        "y": 43,
+        "y": 52,
         "w": 24,
         "h": 1
       },
@@ -725,7 +865,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 53,
         "w": 24,
         "h": 8
       },
@@ -794,7 +934,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 61,
         "w": 12,
         "h": 8
       },
@@ -841,7 +981,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 52,
+        "y": 61,
         "w": 12,
         "h": 8
       },
@@ -884,7 +1024,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 60
+        "y": 69
       },
       "id": 27,
       "panels": [
@@ -1489,7 +1629,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 70
       },
       "id": 10,
       "panels": [
@@ -1835,7 +1975,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 71
       },
       "id": 12,
       "panels": [
@@ -2227,7 +2367,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 72
       },
       "id": 17,
       "panels": [
@@ -2952,7 +3092,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 64
+        "y": 73
       },
       "id": 21,
       "panels": [
@@ -3260,7 +3400,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 65
+        "y": 74
       },
       "id": 38,
       "panels": [
@@ -3765,7 +3905,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 66
+        "y": 75
       },
       "id": 97,
       "panels": [

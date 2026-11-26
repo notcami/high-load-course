@@ -1,8 +1,11 @@
 package ru.quipy.payments.logic
 
 import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.Timer
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
+import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 @Component
 class PaymentMetrics(
@@ -40,8 +43,19 @@ class PaymentMetrics(
         "online.shop.payment.retries", "service", serviceName, "accountName", account
     ).increment()
 
-    fun providerFinished(account: String, outcome: Outcome) = registry.counter(
-        "online.shop.provider.finished", "service", serviceName,
-        "accountName", account, "outcome", outcome.name
-    ).increment()
+    fun providerFinished(account: String, outcome: Outcome, durationNanos: Long) {
+        registry.counter(
+            "online.shop.provider.finished", "service", serviceName,
+            "accountName", account, "outcome", outcome.name
+        ).increment()
+        Timer.builder("online.shop.provider.attempt.duration")
+            .tags("service", serviceName, "accountName", account, "outcome", outcome.name)
+            .serviceLevelObjectives(
+                Duration.ofMillis(250), Duration.ofMillis(500), Duration.ofMillis(750),
+                Duration.ofSeconds(1), Duration.ofMillis(1250), Duration.ofMillis(1500),
+                Duration.ofMillis(1750), Duration.ofSeconds(2), Duration.ofMillis(2250),
+            )
+            .register(registry)
+            .record(durationNanos, TimeUnit.NANOSECONDS)
+    }
 }
