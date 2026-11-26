@@ -416,7 +416,7 @@
     {
       "id": 114,
       "type": "timeseries",
-      "title": "Existing payment queue and active workers",
+      "title": "Payment executor queue and active workers",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -485,7 +485,7 @@
     {
       "id": 115,
       "type": "timeseries",
-      "title": "Provider processed rate (rps): acc-23",
+      "title": "Provider sends and responses: acc-23",
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
@@ -518,8 +518,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum by (outcome) (irate(external_sys_duration_count{service=~\"$service\",accountName=\"acc-23\",job=\"bombardier-docker-network-job\"}[30s]))",
-          "legendFormat": "{{outcome}} (recent)",
+          "expr": "sum(rate(online_shop_provider_started_total{service=~\"$service\",accountName=\"acc-23\"}[10s]))",
+          "legendFormat": "Sent (10 s)",
           "range": true,
           "editorMode": "code",
           "datasource": {
@@ -529,6 +529,28 @@
         },
         {
           "refId": "B",
+          "expr": "sum(rate(online_shop_provider_started_total{service=~\"$service\",accountName=\"acc-23\"}[30s]))",
+          "legendFormat": "Sent (30 s)",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "C",
+          "expr": "sum(rate(online_shop_provider_finished_total{service=~\"$service\",accountName=\"acc-23\"}[10s]))",
+          "legendFormat": "Responses received (10 s)",
+          "range": true,
+          "editorMode": "code",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          }
+        },
+        {
+          "refId": "D",
           "expr": "vector(11)",
           "legendFormat": "acc-23 limit: 11 rps",
           "range": true,
