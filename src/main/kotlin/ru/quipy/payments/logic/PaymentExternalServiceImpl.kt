@@ -30,6 +30,8 @@ class PaymentExternalSystemAdapterImpl(
     companion object {
         private val logger = LoggerFactory.getLogger(PaymentExternalSystemAdapterImpl::class.java)
         private val mapper = ObjectMapper().registerKotlinModule()
+        private const val MAX_ATTEMPTS = 3
+        private const val RETRY_DELAY_MILLIS = 100L
     }
 
     private val admission = AccountAdmission(properties.rateLimitPerSec, properties.parallelRequests)
@@ -45,6 +47,30 @@ class PaymentExternalSystemAdapterImpl(
     }
 
     override fun performPaymentAsync(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long) {
+        var attempt = 1
+        var result = performAttempt(paymentId, amount, paymentStartedAt, deadline)
+        while (result.outcome == PaymentMetrics.Outcome.TEMPORARY_ERROR && attempt < MAX_ATTEMPTS &&
+            deadline - now() > responseReserve.toMillis() + RETRY_DELAY_MILLIS) {
+            try {
+                Thread.sleep(RETRY_DELAY_MILLIS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                result = result.copy(outcome = PaymentMetrics.Outcome.INTERRUPTED, reason = "Payment interrupted")
+                break
+            }
+            metrics.retried(properties.accountName)
+            attempt++
+            result = performAttempt(paymentId, amount, paymentStartedAt, deadline)
+        }
+        val outcome = if (result.success && now() >= deadline) PaymentMetrics.Outcome.LATE_SUCCESS else result.outcome
+        paymentESService.update(paymentId) {
+            it.logProcessing(result.success, now(), result.transactionId, result.reason)
+        }
+        metrics.completed(outcome)
+        logger.info("Payment {} account {} outcome {} attempts {}", paymentId, properties.accountName, outcome, attempt)
+    }
+
+    private fun performAttempt(paymentId: UUID, amount: Int, paymentStartedAt: Long, deadline: Long): PaymentAttempt {
         val transactionId = UUID.randomUUID()
         var admitted = false
         var submitted = false
@@ -81,6 +107,7 @@ class PaymentExternalSystemAdapterImpl(
                             reason = body.message
                             outcome = when {
                                 success -> PaymentMetrics.Outcome.SUCCESS
+                                body.message == "Temporary error" -> PaymentMetrics.Outcome.TEMPORARY_ERROR
                                 body.message == "parallel_requests_limit_breached" -> PaymentMetrics.Outcome.PARALLEL_LIMIT
                                 body.message == "rate_limit_breached" -> PaymentMetrics.Outcome.RATE_LIMIT
                                 else -> PaymentMetrics.Outcome.PROVIDER_REJECTED
@@ -113,19 +140,19 @@ class PaymentExternalSystemAdapterImpl(
                 it.logSubmission(false, transactionId, now(), Duration.ofMillis(now() - paymentStartedAt))
             }
         }
-        if (success && now() >= deadline) {
-            outcome = PaymentMetrics.Outcome.LATE_SUCCESS
-        }
-        paymentESService.update(paymentId) {
-            it.logProcessing(success, now(), transactionId, reason)
-        }
-        metrics.completed(outcome)
-        logger.info("Payment {} account {} outcome {} attempted {}", paymentId, properties.accountName, outcome, attempted)
+        return PaymentAttempt(transactionId, success, outcome, reason)
     }
 
     override fun price() = properties.price
     override fun isEnabled() = properties.enabled
     override fun name() = properties.accountName
+
+    private data class PaymentAttempt(
+        val transactionId: UUID,
+        val success: Boolean,
+        val outcome: PaymentMetrics.Outcome,
+        val reason: String?,
+    )
 }
 
 internal data class ProviderDeadline(val value: Long)

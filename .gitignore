@@ -20,6 +20,7 @@ target/
 *.ipr
 /http-client.env.json
 /.case5-runs/
+/.case6-runs/
 /docker-compose.override.yml
 
 ### NetBeans ###

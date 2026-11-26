@@ -11,7 +11,7 @@ class PaymentMetrics(
 ) {
     enum class Outcome {
         SUCCESS, LATE_SUCCESS, DEADLINE, QUEUE_FULL, INTERRUPTED, TIMEOUT, IO_ERROR,
-        HTTP_ERROR, PROVIDER_REJECTED, RATE_LIMIT, PARALLEL_LIMIT, INTERNAL_ERROR
+        HTTP_ERROR, PROVIDER_REJECTED, TEMPORARY_ERROR, RATE_LIMIT, PARALLEL_LIMIT, INTERNAL_ERROR
     }
 
     private val incoming = registry.counter("online.shop.payment.requests", "service", serviceName)
@@ -29,10 +29,15 @@ class PaymentMetrics(
 
     fun registerAccount(account: String) {
         registry.counter("online.shop.provider.started", "service", serviceName, "accountName", account)
+        registry.counter("online.shop.payment.retries", "service", serviceName, "accountName", account)
     }
 
     fun providerStarted(account: String) = registry.counter(
         "online.shop.provider.started", "service", serviceName, "accountName", account
+    ).increment()
+
+    fun retried(account: String) = registry.counter(
+        "online.shop.payment.retries", "service", serviceName, "accountName", account
     ).increment()
 
     fun providerFinished(account: String, outcome: Outcome) = registry.counter(
