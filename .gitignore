@@ -19,6 +19,8 @@ target/
 *.iml
 *.ipr
 /http-client.env.json
+/.case5-runs/
+/docker-compose.override.yml
 
 ### NetBeans ###
 /nbproject/private/

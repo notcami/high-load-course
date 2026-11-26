@@ -39,13 +39,14 @@ class PaymentAccountsConfig {
     lateinit var allowedAccounts: List<String>
 
     @Bean
-    fun accountAdapters(paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>, metrics: PaymentMetrics): List<PaymentExternalSystemAdapter> {
+    fun paymentAccount(): PaymentAccountProperties {
         val request = HttpRequest.newBuilder()
             .uri(URI("http://${paymentProviderHostPort}/external/accounts?serviceName=$serviceName&token=$token"))
             .GET()
             .build()
 
         val resp = javaClient.send(request, HttpResponse.BodyHandlers.ofString())
+        check(resp.statusCode() in 200..299) { "Cannot load payment accounts: HTTP ${resp.statusCode()}" }
 
         println("\nPayment accounts list:")
         return mapper.readValue<List<PaymentAccountProperties>>(
@@ -55,15 +56,17 @@ class PaymentAccountsConfig {
             .filter { it.accountName in allowedAccounts }
             .map { it.copy(enabled = true) }
             .onEach(::println)
-            .map {
-                PaymentExternalSystemAdapterImpl(
-                    it,
-                    paymentService,
-                    paymentProviderHostPort,
-                    token,
-                    metrics,
-                    providerCallTimeoutMillis
-                )
-            }
+            .singleOrNull() ?: error("Exactly one payment account must be configured")
     }
+
+    @Bean
+    fun accountAdapters(
+        account: PaymentAccountProperties,
+        paymentService: EventSourcingService<UUID, PaymentAggregate, PaymentAggregateState>,
+        metrics: PaymentMetrics,
+    ): List<PaymentExternalSystemAdapter> = listOf(
+        PaymentExternalSystemAdapterImpl(
+            account, paymentService, paymentProviderHostPort, token, metrics, providerCallTimeoutMillis
+        )
+    )
 }
